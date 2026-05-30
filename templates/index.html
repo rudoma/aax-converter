@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AAX → M4B / MP3 Konverter</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2300e5a0'/><text y='24' x='4' font-size='22'>🎧</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:opsz,wght@9..40,700;9..40,800&display=swap');
+
+  :root {
+    --bg:      #0d0f0e;
+    --surf:    #141716;
+    --surf2:   #1b1f1d;
+    --border:  #262b28;
+    --accent:  #00e5a0;
+    --accent2: #00b87d;
+    --text:    #e4ebe5;
+    --muted:   #68736e;
+    --error:   #ff5f5f;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1rem 4rem;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; width: 100%; max-width: 700px; }
+
+  /* ── Header ── */
+  header { text-align: center; margin-bottom: 2.5rem; }
+  .logo { display: inline-flex; align-items: center; gap: .6rem; margin-bottom: .35rem; }
+  .logo-box {
+    width: 34px; height: 34px; background: var(--accent); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  h1 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: clamp(1.5rem, 4.5vw, 2.2rem);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1;
+    font-variant-numeric: lining-nums;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .3em;
+  }
+  h1 em { color: var(--accent); font-style: normal; }
+  .sub { color: var(--muted); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; margin-top: .35rem; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surf); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.75rem; margin-bottom: 1.25rem;
+  }
+
+  /* ── Drop zone ── */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 9px;
+    padding: 2.2rem 1.5rem; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s; position: relative;
+  }
+  .drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: rgba(0,229,160,.04); }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 2rem; display: block; margin-bottom: .5rem;
+    filter: grayscale(1) brightness(.4); transition: filter .2s; }
+  .drop-zone:hover .drop-icon, .drop-zone.over .drop-icon { filter: none; }
+  .drop-label { font-size: .84rem; color: var(--muted); line-height: 1.65; }
+  .drop-label strong { color: var(--accent); }
+
+  /* ── Book card ── */
+  .book-info {
+    display: none;
+    margin-top: 1.4rem;
+    gap: 1.1rem;
+    align-items: flex-start;
+    background: var(--surf2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    animation: fadeUp .3s ease;
+  }
+  .book-info.visible { display: flex; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .book-cover {
+    width: 72px; height: 72px; flex-shrink: 0;
+    border-radius: 7px;
+    background: var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.8rem; overflow: hidden;
+  }
+  .book-cover img { width: 72px; height: 72px; object-fit: cover; display: none; }
+
+  .book-meta { flex: 1; min-width: 0; }
+  .book-title {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: .95rem;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    color: var(--text); margin-bottom: .25rem;
+  }
+  .book-author { font-size: .78rem; color: var(--accent2); margin-bottom: .4rem; }
+  .book-tags { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+
+  /* Tags with SVG icons */
+  .tag {
+    display: inline-flex; align-items: center; gap: .35rem;
+    font-size: .68rem; padding: .2rem .6rem;
+    background: rgba(255,255,255,.05); border: 1px solid var(--border);
+    border-radius: 99px; color: var(--muted);
+  }
+  .tag svg { width: 12px; height: 12px; flex-shrink: 0; }
+  .tag.loading { animation: pulse 1.2s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  /* ── Options ── */
+  .opts { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; margin-top: 1.4rem; }
+  .opt-label { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: .45rem; }
+
+  .toggle { display: flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .toggle input { display: none; }
+  .toggle label {
+    flex: 1; text-align: center; padding: .48rem .3rem; font-size: .78rem;
+    cursor: pointer; color: var(--muted); background: var(--surf2);
+    transition: background .15s, color .15s; user-select: none;
+    display: flex; align-items: center; justify-content: center; gap: .3rem;
+  }
+  .toggle input:checked + label { background: var(--accent); color: #0d0f0e; font-weight: 700; }
+
+  /* ── Button ── */
+  .btn {
+    margin-top: 1.4rem; width: 100%; padding: .82rem 1.5rem;
+    background: var(--accent); color: #0d0f0e;
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: .95rem;
+    border: none; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: .5rem;
+    transition: background .15s, transform .1s, opacity .2s;
+  }
+  .btn:hover:not(:disabled) { background: #00ffb3; transform: translateY(-1px); }
+  .btn:active:not(:disabled) { transform: none; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .spin {
+    width: 15px; height: 15px; border: 2px solid currentColor;
+    border-top-color: transparent; border-radius: 50%;
+    animation: rot .65s linear infinite; display: none;
+  }
+  .btn.loading .spin { display: block; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  /* ── Status ── */
+  .status {
+    display: none; align-items: center; gap: .6rem;
+    padding: .72rem 1rem; border-radius: 8px; font-size: .8rem; margin-top: 1rem;
+  }
+  .status.show { display: flex; }
+  .status.ok  { background: rgba(0,229,160,.07); border: 1px solid var(--accent2); color: var(--accent); }
+  .status.err { background: rgba(255,95,95,.07);  border: 1px solid var(--error);  color: var(--error); }
+  .dl-btn {
+    margin-left: auto; display: none; align-items: center; gap: .3rem;
+    background: var(--accent); color: #0d0f0e; font-family: 'DM Sans', sans-serif;
+    font-weight: 700; font-size: .75rem; border: none; border-radius: 6px;
+    padding: .32rem .8rem; cursor: pointer; text-decoration: none; white-space: nowrap;
+  }
+  .dl-btn.show { display: inline-flex; }
+  .dl-btn:hover { background: #00ffb3; }
+
+  /* ── Terminal ── */
+  .term { display: none; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .term.show { display: block; }
+  .term-bar {
+    background: var(--surf); border-bottom: 1px solid var(--border);
+    padding: .55rem 1rem; display: flex; align-items: center; gap: .45rem;
+    font-size: .7rem; color: var(--muted);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; } .dot.y { background: #febc2e; } .dot.g { background: #28c840; }
+  .term-title { margin-left: auto; }
+  .term-body {
+    padding: .9rem 1rem; font-size: .74rem; line-height: 1.85;
+    max-height: 300px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    background: #060807;
+  }
+  .l      { display: block; }
+  .l.info { color: #8faaa2; }
+  .l.ffm  { color: var(--muted); }
+  .l.ok   { color: var(--accent); font-weight: 600; }
+  .l.err  { color: var(--error); }
+  .cursor {
+    display: inline-block; width: 7px; height: .9em;
+    background: var(--accent); vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo">
+      <div class="logo-box">🎧</div>
+      <h1>AAX <em>→</em> M4B / MP3</h1>
+    </div>
+    <p class="sub">Audible Konverter · Docker Edition</p>
+  </header>
+
+  <div class="card">
+    <!-- Drop zone -->
+    <div class="drop-zone" id="dz">
+      <input type="file" id="fi" accept=".aax">
+      <span class="drop-icon">📁</span>
+      <div class="drop-label"><strong>AAX-Datei ablegen</strong><br>oder klicken · nur .aax</div>
+    </div>
+
+    <!-- Book info panel -->
+    <div class="book-info" id="bookInfo">
+      <div class="book-cover" id="coverBox">
+        <span id="coverEmoji">📚</span>
+        <img id="coverImg" alt="Cover">
+      </div>
+      <div class="book-meta">
+        <div class="book-title"  id="bookTitle">—</div>
+        <div class="book-author" id="bookAuthor">—</div>
+        <div class="book-tags"   id="bookTags">
+          <span class="tag loading" id="tagLoading">Metadaten werden geladen …</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="opts">
+      <div>
+        <div class="opt-label">Format</div>
+        <div class="toggle">
+          <input type="radio" name="fmt" id="fm4b" value="m4b" checked>
+          <label for="fm4b">M4B</label>
+          <input type="radio" name="fmt" id="fmp3" value="mp3">
+          <label for="fmp3">MP3</label>
+        </div>
+      </div>
+      <div>
+        <div class="opt-label">Ziel</div>
+        <div class="toggle">
+          <input type="radio" name="dest" id="dsrv" value="server" checked>
+          <label for="dsrv"><span>📂</span> Server</label>
+          <input type="radio" name="dest" id="ddl"  value="download">
+          <label for="ddl"><span>⬇</span> Download</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Convert button -->
+    <button class="btn" id="btn" disabled>
+      <span class="spin"></span>
+      <span id="btnTxt">Konvertieren</span>
+    </button>
+
+    <!-- Status -->
+    <div class="status" id="status">
+      <span id="stIcon"></span>
+      <span id="stText"></span>
+      <a class="dl-btn" id="dlBtn" href="#"><span>⬇</span> Herunterladen</a>
+    </div>
+  </div>
+
+  <!-- Terminal -->
+  <div class="term" id="term">
+    <div class="term-bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="term-title">ffmpeg output</span>
+    </div>
+    <div class="term-body" id="log"><span class="cursor"></span></div>
+  </div>
+
+</div>
+
+<script>
+const dz       = document.getElementById('dz');
+const fi       = document.getElementById('fi');
+const btn      = document.getElementById('btn');
+const btnTxt   = document.getElementById('btnTxt');
+const term     = document.getElementById('term');
+const log      = document.getElementById('log');
+const status   = document.getElementById('status');
+const stIcon   = document.getElementById('stIcon');
+const stText   = document.getElementById('stText');
+const dlBtn    = document.getElementById('dlBtn');
+
+const bookInfo   = document.getElementById('bookInfo');
+const bookTitle  = document.getElementById('bookTitle');
+const bookAuthor = document.getElementById('bookAuthor');
+const bookTags   = document.getElementById('bookTags');
+const tagLoading = document.getElementById('tagLoading');
+const coverImg   = document.getElementById('coverImg');
+const coverEmoji = document.getElementById('coverEmoji');
+
+let selectedFile = null;
+
+// ── File handling ─────────────────────────────────────────────────────────
+function pickFile(file) {
+  if (!file || !file.name.toLowerCase().endsWith('.aax')) { alert('Nur .aax Dateien!'); return; }
+  selectedFile = file;
+  btn.disabled = false;
+  hideStatus();
+  showBookPreview(file);
+}
+
+fi.addEventListener('change', () => pickFile(fi.files[0]));
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); pickFile(e.dataTransfer.files[0]); });
+
+// ── SVG tag icons ─────────────────────────────────────────────────────────
+const ICONS = {
+  calendar: `<svg viewBox="0 0 16 16" fill="none" stroke="#f6c90e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="12" rx="1.5"/><path d="M5 1v3M11 1v3M1.5 6.5h13"/></svg>`,
+  clock:    `<svg viewBox="0 0 16 16" fill="none" stroke="#60cdff" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>`,
+  mic:      `<svg viewBox="0 0 16 16" fill="none" stroke="#c084fc" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="1.5" width="6" height="8" rx="3"/><path d="M2.5 8.5A5.5 5.5 0 0 0 13.5 8.5M8 14v-2"/></svg>`,
+};
+
+function makeTag(iconKey, text) {
+  const s = document.createElement('span');
+  s.className = 'tag';
+  s.innerHTML = ICONS[iconKey] + text;
+  return s;
+}
+
+// ── Book preview ──────────────────────────────────────────────────────────
+function showBookPreview(file) {
+  bookTitle.textContent  = file.name.replace(/\.aax$/i, '');
+  bookAuthor.textContent = '—';
+  bookTags.innerHTML     = '';
+  tagLoading.textContent = 'Metadaten werden geladen …';
+  tagLoading.className   = 'tag loading';
+  bookTags.appendChild(tagLoading);
+  coverImg.style.display   = 'none';
+  coverEmoji.style.display = 'block';
+  bookInfo.classList.add('visible');
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  fetch('/metadata', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(meta => {
+      if (meta.error) { tagLoading.textContent = '⚠ ' + meta.error; tagLoading.className = 'tag'; return; }
+
+      bookTitle.textContent  = meta.title  || file.name.replace(/\.aax$/i, '');
+      bookAuthor.textContent = meta.author || '—';
+
+      bookTags.innerHTML = '';
+      if (meta.year)     bookTags.appendChild(makeTag('calendar', meta.year));
+      if (meta.duration) bookTags.appendChild(makeTag('clock', meta.duration));
+      if (meta.narrator) bookTags.appendChild(makeTag('mic', meta.narrator));
+      if (!bookTags.children.length) {
+        tagLoading.textContent = 'Keine Zusatzinfos'; tagLoading.className = 'tag';
+        bookTags.appendChild(tagLoading);
+      }
+
+      if (meta.cover) {
+        coverImg.src = meta.cover;
+        coverImg.onload = () => { coverImg.style.display = 'block'; coverEmoji.style.display = 'none'; };
+      }
+    })
+    .catch(() => { tagLoading.textContent = 'Metadaten nicht verfügbar'; tagLoading.className = 'tag'; });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function getFmt()  { return document.querySelector('input[name=fmt]:checked').value; }
+function getDest() { return document.querySelector('input[name=dest]:checked').value; }
+
+function appendLog(line) {
+  const cur = log.querySelector('.cursor');
+  const sp  = document.createElement('span');
+  let cls = 'l info';
+  if (line.startsWith('[ffmpeg]'))  cls = 'l ffm';
+  if (line.startsWith('[success]')) cls = 'l ok';
+  if (line.startsWith('[error]'))   cls = 'l err';
+  sp.className = cls; sp.textContent = line + '\n';
+  log.insertBefore(sp, cur);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setLoading(on) {
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+  btnTxt.textContent = on ? 'Konvertiere …' : 'Konvertieren';
+}
+
+function showStatus(ok, text, jobId, filename) {
+  status.className = 'status show ' + (ok ? 'ok' : 'err');
+  stIcon.textContent = ok ? '✓' : '✗';
+  stText.textContent = text;
+  if (ok && jobId && filename) {
+    dlBtn.href = `/download/${jobId}`;
+    dlBtn.classList.add('show');
+  } else {
+    dlBtn.classList.remove('show');
+  }
+}
+function hideStatus() { status.className = 'status'; dlBtn.classList.remove('show'); }
+
+// ── Convert ───────────────────────────────────────────────────────────────
+btn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  log.innerHTML = '<span class="cursor"></span>';
+  term.classList.add('show');
+  hideStatus();
+  setLoading(true);
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('format', getFmt());
+  fd.append('destination', getDest());
+
+  let jobId;
+  try {
+    const res  = await fetch('/convert', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Upload fehlgeschlagen');
+    jobId = data.job_id;
+  } catch (e) {
+    setLoading(false); showStatus(false, e.message); return;
+  }
+
+  const es = new EventSource(`/stream/${jobId}`);
+  let success = false, dlFilename = null;
+
+  es.onmessage = e => {
+    if (e.data === '__done__') {
+      es.close(); setLoading(false);
+      if (success) {
+        if (getDest() === 'download' && dlFilename)
+          showStatus(true, 'Bereit zum Herunterladen!', jobId, dlFilename);
+        else
+          showStatus(true, 'Konvertierung abgeschlossen!');
+      } else {
+        showStatus(false, 'Konvertierung fehlgeschlagen. Siehe Log.');
+      }
+      return;
+    }
+    appendLog(e.data);
+    if (e.data.startsWith('[success]'))  success = true;
+    if (e.data.startsWith('[download] ')) dlFilename = e.data.slice(11).trim();
+  };
+
+  es.onerror = () => { es.close(); setLoading(false); showStatus(false, 'Verbindung unterbrochen.'); };
+});
+</script>
+</body>
+</html>

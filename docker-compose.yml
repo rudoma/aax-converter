@@ -1,0 +1,15 @@
+services:
+  aax-converter:
+    build: .
+    image: aax-converter:latest
+    container_name: aax-converter
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:5000"
+    environment:
+      ACTIVATION_BYTES: ${ACTIVATION_BYTES}
+      OUTPUT_DIR: /output
+    volumes:
+      - ${OUTPUT_PATH:-./output}:/output
+    tmpfs:
+      - /tmp/uploads:size=4g,mode=1777
