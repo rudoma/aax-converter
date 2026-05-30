@@ -4,7 +4,6 @@ Minimale Web-App zum Konvertieren von Audible-AAX-Dateien in M4B oder MP3 über 
 
 ## Features
 
-- **Automatische activation_bytes** — werden über [audible-tools.kamsker.at](https://audible-tools.kamsker.at/) aus der AAX-Checksum ermittelt, kein manueller Schritt nötig
 - **Format-Wahl** — M4B (verlustfreier Remux) oder MP3 (re-encode)
 - **Ziel-Wahl** — direkt auf den Server-Mount oder als Browser-Download
 - **Live-Log** — ffmpeg-Output in Echtzeit im Terminal-Widget
@@ -12,8 +11,8 @@ Minimale Web-App zum Konvertieren von Audible-AAX-Dateien in M4B oder MP3 über 
 ## Schnellstart
 
 ```bash
-cp .env.example .env          # optional ACTIVATION_BYTES eintragen
-docker compose up -d --build
+cp .env.example .env          # ACTIVATION_BYTES eintragen
+docker compose up -d
 # Browser: http://localhost:8080
 ```
 
@@ -21,7 +20,7 @@ docker compose up -d --build
 
 | Variable           | Pflicht | Beschreibung                                        |
 |--------------------|---------|-----------------------------------------------------|
-| `ACTIVATION_BYTES` | –       | Hex-Wert; wenn leer → automatische API-Auflösung    |
+| `ACTIVATION_BYTES` | –       | Hex-Wert    |
 | `OUTPUT_PATH`      | –       | Lokaler Ausgabepfad (Standard: `./output`)          |
 | `PORT`             | –       | Host-Port (Standard: `8080`)                        |
 
@@ -29,7 +28,7 @@ docker compose up -d --build
 
 ```
 ./output/
-└── Autorenname/
+└── Autor - Titel/
     └── Buchtitel.m4b   (oder .mp3)
 ```
 
