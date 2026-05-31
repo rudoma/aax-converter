@@ -1,7 +1,7 @@
 services:
   aax-converter:
     build: .
-    image: aax-converter:latest
+    image: ghcr.io/rudoma/aax-converter:latest
     container_name: aax-converter
     restart: unless-stopped
     ports:
